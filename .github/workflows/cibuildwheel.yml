@@ -1,42 +1,106 @@
 name: Build
 
 on:
-  push:
-    tags:
-      # ytf did they invent their own syntax that's almost regex?
-      # ** matches 'zero or more of any character'
-      - 'release-v[0-9]+.[0-9]+.[0-9]+**'
-      - 'prerelease-v[0-9]+.[0-9]+.[0-9]+**'
+  workflow_call:
+    inputs:
+      pure-python:
+        description: 'Whether this is a pure Python package (no compilation needed)'
+        type: boolean
+        default: false
+        required: false
+      package-dir:
+        description: 'Path to package directory'
+        type: string
+        default: '.'
+        required: false
+      output-dir:
+        description: 'Path to output directory for wheels'
+        type: string
+        default: 'wheelhouse'
+        required: false
+      config-file:
+        description: 'Path to cibuildwheel config file'
+        type: string
+        default: '{package}/pyproject.toml'
+        required: false
+      python-version:
+        description: 'Python version for pure Python builds'
+        type: string
+        default: '3.11'
+        required: false
+      wheel-name-pattern:
+        description: 'Pattern to match wheel files for upload (e.g., "package_name-*.whl")'
+        type: string
+        default: '*.whl'
+        required: false
+      tag-pattern-release:
+        description: 'Tag pattern for release builds'
+        type: string
+        default: 'release-v[0-9]+.[0-9]+.[0-9]+**'
+        required: false
+      tag-pattern-prerelease:
+        description: 'Tag pattern for prerelease builds'
+        type: string
+        default: 'prerelease-v[0-9]+.[0-9]+.[0-9]+**'
+        required: false
+      create-release:
+        description: 'Whether to create a GitHub release'
+        type: boolean
+        default: true
+        required: false
+    secrets:
+      GITHUB_TOKEN:
+        description: 'GitHub token for creating releases'
+        required: false
 jobs:
   build_wheels:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: ${{ inputs.pure-python && 'Build universal wheel' || format('Build wheels on {0}', matrix.os) }}
+    runs-on: ${{ inputs.pure-python && 'ubuntu-latest' || matrix.os }}
     strategy:
       matrix:
-        # macos-13 is an intel runner, macos-14 is apple silicon
-        os: [ubuntu-latest, windows-latest, macos-13, macos-14, ubuntu-24.04-arm]
+        # For pure Python, only build once on ubuntu-latest
+        # For compiled packages, build on multiple platforms
+        os: ${{ inputs.pure-python && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest", "windows-latest", "macos-13", "macos-14", "ubuntu-24.04-arm"]') }}
 
     steps:
       - uses: actions/checkout@v4
+      
+      # Pure Python build path
+      - name: Configure Python version
+        if: ${{ inputs.pure-python }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ inputs.python-version }}
+          architecture: x64
+          
+      - name: Build pure Python wheel
+        if: ${{ inputs.pure-python }}
+        run: |
+          python -m pip install wheel
+          python -m pip wheel ${{ inputs.package-dir }} -w ./${{ inputs.output-dir }}
+      
+      # Compiled package build path
       # aarch64 (arm) is built via qemu emulation
       # QEMU is sadly too slow. We need to wait for public ARM support
       #- name: Set up QEMU
-      #  if: runner.os == 'Linux'
+      #  if: runner.os == 'Linux' && !inputs.pure-python
       #  uses: docker/setup-qemu-action@v3
       #  with:
       #    platforms: all
-      - name: Build wheels
+      - name: Build compiled wheels
+        if: ${{ !inputs.pure-python }}
         uses: pypa/cibuildwheel@v2.21.3
         env:
           CIBW_ARCHS_LINUX: auto
         with:
-          package-dir: .
-          output-dir: wheelhouse
-          config-file: "{package}/pyproject.toml"
+          package-dir: ${{ inputs.package-dir }}
+          output-dir: ${{ inputs.output-dir }}
+          config-file: ${{ inputs.config-file }}
+          
       - uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
-          path: ./wheelhouse/*.whl
+          name: ${{ inputs.pure-python && 'cibw-wheel-pure' || format('cibw-wheels-{0}-{1}', matrix.os, strategy.job-index) }}
+          path: ./${{ inputs.output-dir }}/${{ inputs.wheel-name-pattern }}
 
   build_sdist:
     name: Build source distribution
@@ -51,6 +115,7 @@ jobs:
           name: cibw-sdist
           path: dist/*.tar.gz
   create_release:
+    if: ${{ inputs.create-release }}
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
     permissions:
@@ -67,10 +132,10 @@ jobs:
         id: get_tag_info
         run: |
           FULL_TAG=${GITHUB_REF#refs/tags/}
-          if [[ $FULL_TAG == release-* ]]; then
+          if [[ $FULL_TAG == ${{ inputs.tag-pattern-release }} ]]; then
             TAG_NAME=${FULL_TAG#release-}
             IS_PRERELEASE=false
-          elif [[ $FULL_TAG == prerelease-* ]]; then
+          elif [[ $FULL_TAG == ${{ inputs.tag-pattern-prerelease }} ]]; then
             TAG_NAME=${FULL_TAG#prerelease-}
             IS_PRERELEASE=true
           else
@@ -91,7 +156,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || github.token }}
         with:
           name: ${{ env.TAG_NAME }}
           draft: true
