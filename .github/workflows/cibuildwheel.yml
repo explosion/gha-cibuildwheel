@@ -120,13 +120,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      checks: write
-      actions: read
-      issues: read
-      packages: write
-      pull-requests: read
-      repository-projects: read
-      statuses: read
     steps:
       - name: Get the tag name and determine if it's a prerelease
         id: get_tag_info
