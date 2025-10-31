@@ -125,10 +125,11 @@ jobs:
         id: get_tag_info
         run: |
           FULL_TAG=${{ github.ref_name }}
-          if [[ $FULL_TAG == ${{ inputs.tag-pattern-release }} ]]; then
+          shopt -s extglob
+          if [[ $FULL_TAG == release-v+([0-9]).+([0-9]).+([0-9])* ]]; then
             TAG_NAME=${FULL_TAG#release-}
             IS_PRERELEASE=false
-          elif [[ $FULL_TAG == ${{ inputs.tag-pattern-prerelease }} ]]; then
+          elif [[ $FULL_TAG == prerelease-v+([0-9]).+([0-9]).+([0-9])* ]]; then
             TAG_NAME=${FULL_TAG#prerelease-}
             IS_PRERELEASE=true
           else
