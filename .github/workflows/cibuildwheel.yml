@@ -124,7 +124,7 @@ jobs:
       - name: Get the tag name and determine if it's a prerelease
         id: get_tag_info
         run: |
-          FULL_TAG=${GITHUB_REF#refs/tags/}
+          FULL_TAG=${{ github.ref_name }}
           if [[ $FULL_TAG == ${{ inputs.tag-pattern-release }} ]]; then
             TAG_NAME=${FULL_TAG#release-}
             IS_PRERELEASE=false
@@ -151,6 +151,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.gh-token || github.token }}
         with:
+          repository: ${{ github.repository }}
+          tag_name: ${{ github.ref_name }}
           name: ${{ env.TAG_NAME }}
           draft: true
           prerelease: ${{ env.IS_PRERELEASE }}
