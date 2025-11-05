@@ -3,6 +3,10 @@ name: Build
 on:
   workflow_call:
     inputs:
+      wheel-name-pattern:
+        description: 'Pattern to match wheel files for upload (e.g., "package_name-*.whl")'
+        type: string
+        required: true
       pure-python:
         description: 'Whether this is a pure Python package (no compilation needed)'
         type: boolean
@@ -27,11 +31,6 @@ on:
         description: 'Python version for pure Python builds'
         type: string
         default: '3.11'
-        required: false
-      wheel-name-pattern:
-        description: 'Pattern to match wheel files for upload (e.g., "package_name-*.whl")'
-        type: string
-        default: '*.whl'
         required: false
       tag-pattern-release:
         description: 'Tag pattern for release builds'
