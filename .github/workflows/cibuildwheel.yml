@@ -81,7 +81,7 @@ jobs:
         if: ${{ inputs.pure-python && inputs.env != '' }}
         run: |
           # Parse YAML-formatted env vars and export them
-          echo "${{ inputs.env }}" | while IFS=': ' read -r key value; do
+          while IFS=': ' read -r key value; do
             # Skip empty lines and clean up values
             if [ -n "$key" ]; then
               # Remove quotes if present
@@ -92,7 +92,7 @@ jobs:
               echo "${key}=${value}" >> $GITHUB_ENV
               echo "::notice::Setting environment variable: ${key}"
             fi
-          done
+          done <<< "${{ inputs.env }}"
           
       - name: Build pure Python wheel
         if: ${{ inputs.pure-python }}
@@ -113,7 +113,7 @@ jobs:
         id: parse-env
         run: |
           # Parse YAML-formatted env vars and export them
-          echo "${{ inputs.env }}" | while IFS=': ' read -r key value; do
+          while IFS=': ' read -r key value; do
             # Skip empty lines and clean up values
             if [ -n "$key" ]; then
               # Remove quotes if present
@@ -124,7 +124,7 @@ jobs:
               echo "${key}=${value}" >> $GITHUB_ENV
               echo "::notice::Setting environment variable: ${key}"
             fi
-          done
+          done <<< "${{ inputs.env }}"
           
       - name: Build compiled wheels
         if: ${{ !inputs.pure-python }}
@@ -151,7 +151,7 @@ jobs:
         if: ${{ inputs.env != '' }}
         run: |
           # Parse YAML-formatted env vars and export them
-          echo "${{ inputs.env }}" | while IFS=': ' read -r key value; do
+          while IFS=': ' read -r key value; do
             # Skip empty lines and clean up values
             if [ -n "$key" ]; then
               # Remove quotes if present
@@ -162,7 +162,7 @@ jobs:
               echo "${key}=${value}" >> $GITHUB_ENV
               echo "::notice::Setting environment variable: ${key}"
             fi
-          done
+          done <<< "${{ inputs.env }}"
           
       - name: Build sdist
         run: pipx run build --sdist
