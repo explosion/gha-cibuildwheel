@@ -80,7 +80,19 @@ jobs:
       - name: Set environment variables for pure Python build
         if: ${{ inputs.pure-python && inputs.env != '' }}
         run: |
-          echo "${{ inputs.env }}" >> $GITHUB_ENV
+          # Parse YAML-formatted env vars and export them
+          echo "${{ inputs.env }}" | while IFS=': ' read -r key value; do
+            # Skip empty lines and clean up values
+            if [ -n "$key" ]; then
+              # Remove quotes if present
+              value="${value%\"}"
+              value="${value#\"}"
+              value="${value%\'}"
+              value="${value#\'}"
+              echo "${key}=${value}" >> $GITHUB_ENV
+              echo "::notice::Setting environment variable: ${key}"
+            fi
+          done
           
       - name: Build pure Python wheel
         if: ${{ inputs.pure-python }}
@@ -96,10 +108,23 @@ jobs:
       #  uses: docker/setup-qemu-action@v3
       #  with:
       #    platforms: all
-      - name: Set environment variables for compiled build
+      - name: Parse environment variables
         if: ${{ !inputs.pure-python && inputs.env != '' }}
+        id: parse-env
         run: |
-          echo "${{ inputs.env }}" >> $GITHUB_ENV
+          # Parse YAML-formatted env vars and export them
+          echo "${{ inputs.env }}" | while IFS=': ' read -r key value; do
+            # Skip empty lines and clean up values
+            if [ -n "$key" ]; then
+              # Remove quotes if present
+              value="${value%\"}"
+              value="${value#\"}"
+              value="${value%\'}"
+              value="${value#\'}"
+              echo "${key}=${value}" >> $GITHUB_ENV
+              echo "::notice::Setting environment variable: ${key}"
+            fi
+          done
           
       - name: Build compiled wheels
         if: ${{ !inputs.pure-python }}
@@ -125,7 +150,19 @@ jobs:
       - name: Set environment variables for sdist
         if: ${{ inputs.env != '' }}
         run: |
-          echo "${{ inputs.env }}" >> $GITHUB_ENV
+          # Parse YAML-formatted env vars and export them
+          echo "${{ inputs.env }}" | while IFS=': ' read -r key value; do
+            # Skip empty lines and clean up values
+            if [ -n "$key" ]; then
+              # Remove quotes if present
+              value="${value%\"}"
+              value="${value#\"}"
+              value="${value%\'}"
+              value="${value#\'}"
+              echo "${key}=${value}" >> $GITHUB_ENV
+              echo "::notice::Setting environment variable: ${key}"
+            fi
+          done
           
       - name: Build sdist
         run: pipx run build --sdist
