@@ -79,6 +79,7 @@ jobs:
           
       - name: Set environment variables for pure Python build
         if: ${{ inputs.pure-python && inputs.env != '' }}
+        shell: bash
         run: |
           # Parse YAML-formatted env vars and export them
           while IFS=': ' read -r key value; do
@@ -111,6 +112,7 @@ jobs:
       - name: Parse environment variables
         if: ${{ !inputs.pure-python && inputs.env != '' }}
         id: parse-env
+        shell: bash
         run: |
           # Parse YAML-formatted env vars and export them
           while IFS=': ' read -r key value; do
@@ -149,6 +151,7 @@ jobs:
 
       - name: Set environment variables for sdist
         if: ${{ inputs.env != '' }}
+        shell: bash
         run: |
           # Parse YAML-formatted env vars and export them
           while IFS=': ' read -r key value; do
