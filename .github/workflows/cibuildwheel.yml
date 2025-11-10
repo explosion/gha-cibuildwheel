@@ -82,18 +82,33 @@ jobs:
         shell: bash
         run: |
           # Parse YAML-formatted env vars and export them
-          while IFS=': ' read -r key value; do
-            # Skip empty lines and clean up values
-            if [ -n "$key" ]; then
-              # Remove quotes if present
-              value="${value%\"}"
-              value="${value#\"}"
-              value="${value%\'}"
-              value="${value#\'}"
-              echo "${key}=${value}" >> $GITHUB_ENV
-              echo "::notice::Setting environment variable: ${key}"
+          echo '${{ inputs.env }}' | while IFS= read -r line; do
+            # Skip empty lines and comments
+            if [[ -z "$line" ]] || [[ "$line" =~ ^[[:space:]]*# ]]; then
+              continue
             fi
-          done <<< "${{ inputs.env }}"
+            
+            # Extract key and value using parameter expansion
+            if [[ "$line" =~ ^([^:]+):[[:space:]]*(.*)$ ]]; then
+              key="${BASH_REMATCH[1]}"
+              value="${BASH_REMATCH[2]}"
+              
+              # Trim whitespace from key
+              key="${key// /}"
+              
+              # Remove leading/trailing quotes from value if present
+              value="${value#\"}"
+              value="${value%\"}"
+              value="${value#\'}"
+              value="${value%\'}"
+              
+              # Only set if key is not empty
+              if [[ -n "$key" ]]; then
+                echo "${key}=${value}" >> $GITHUB_ENV
+                echo "::notice::Setting environment variable: ${key}=${value}"
+              fi
+            fi
+          done
           
       - name: Build pure Python wheel
         if: ${{ inputs.pure-python }}
@@ -115,18 +130,33 @@ jobs:
         shell: bash
         run: |
           # Parse YAML-formatted env vars and export them
-          while IFS=': ' read -r key value; do
-            # Skip empty lines and clean up values
-            if [ -n "$key" ]; then
-              # Remove quotes if present
-              value="${value%\"}"
-              value="${value#\"}"
-              value="${value%\'}"
-              value="${value#\'}"
-              echo "${key}=${value}" >> $GITHUB_ENV
-              echo "::notice::Setting environment variable: ${key}"
+          echo '${{ inputs.env }}' | while IFS= read -r line; do
+            # Skip empty lines and comments
+            if [[ -z "$line" ]] || [[ "$line" =~ ^[[:space:]]*# ]]; then
+              continue
             fi
-          done <<< "${{ inputs.env }}"
+            
+            # Extract key and value using parameter expansion
+            if [[ "$line" =~ ^([^:]+):[[:space:]]*(.*)$ ]]; then
+              key="${BASH_REMATCH[1]}"
+              value="${BASH_REMATCH[2]}"
+              
+              # Trim whitespace from key
+              key="${key// /}"
+              
+              # Remove leading/trailing quotes from value if present
+              value="${value#\"}"
+              value="${value%\"}"
+              value="${value#\'}"
+              value="${value%\'}"
+              
+              # Only set if key is not empty
+              if [[ -n "$key" ]]; then
+                echo "${key}=${value}" >> $GITHUB_ENV
+                echo "::notice::Setting environment variable: ${key}=${value}"
+              fi
+            fi
+          done
           
       - name: Build compiled wheels
         if: ${{ !inputs.pure-python }}
@@ -154,18 +184,33 @@ jobs:
         shell: bash
         run: |
           # Parse YAML-formatted env vars and export them
-          while IFS=': ' read -r key value; do
-            # Skip empty lines and clean up values
-            if [ -n "$key" ]; then
-              # Remove quotes if present
-              value="${value%\"}"
-              value="${value#\"}"
-              value="${value%\'}"
-              value="${value#\'}"
-              echo "${key}=${value}" >> $GITHUB_ENV
-              echo "::notice::Setting environment variable: ${key}"
+          echo '${{ inputs.env }}' | while IFS= read -r line; do
+            # Skip empty lines and comments
+            if [[ -z "$line" ]] || [[ "$line" =~ ^[[:space:]]*# ]]; then
+              continue
             fi
-          done <<< "${{ inputs.env }}"
+            
+            # Extract key and value using parameter expansion
+            if [[ "$line" =~ ^([^:]+):[[:space:]]*(.*)$ ]]; then
+              key="${BASH_REMATCH[1]}"
+              value="${BASH_REMATCH[2]}"
+              
+              # Trim whitespace from key
+              key="${key// /}"
+              
+              # Remove leading/trailing quotes from value if present
+              value="${value#\"}"
+              value="${value%\"}"
+              value="${value#\'}"
+              value="${value%\'}"
+              
+              # Only set if key is not empty
+              if [[ -n "$key" ]]; then
+                echo "${key}=${value}" >> $GITHUB_ENV
+                echo "::notice::Setting environment variable: ${key}=${value}"
+              fi
+            fi
+          done
           
       - name: Build sdist
         run: pipx run build --sdist
