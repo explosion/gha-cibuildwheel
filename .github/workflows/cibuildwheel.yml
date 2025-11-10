@@ -48,9 +48,9 @@ on:
         default: true
         required: false
       env:
-        description: 'Environment variables as JSON string (e.g., {"VAR1": "value1", "VAR2": "value2"})'
+        description: 'Environment variables in YAML format'
         type: string
-        default: '{}'
+        default: ''
         required: false
     secrets:
       gh-token:
@@ -77,9 +77,13 @@ jobs:
           python-version: ${{ inputs.python-version }}
           architecture: x64
           
+      - name: Set environment variables for pure Python build
+        if: ${{ inputs.pure-python && inputs.env != '' }}
+        run: |
+          echo "${{ inputs.env }}" >> $GITHUB_ENV
+          
       - name: Build pure Python wheel
         if: ${{ inputs.pure-python }}
-        env: ${{ fromJSON(inputs.env) }}
         run: |
           python -m pip install wheel
           python -m pip wheel ${{ inputs.package-dir }} -w ./${{ inputs.output-dir }}
@@ -93,9 +97,9 @@ jobs:
       #  with:
       #    platforms: all
       - name: Set environment variables for compiled build
-        if: ${{ !inputs.pure-python && inputs.env != '{}' }}
+        if: ${{ !inputs.pure-python && inputs.env != '' }}
         run: |
-          echo "${{ inputs.env }}" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> $GITHUB_ENV
+          echo "${{ inputs.env }}" >> $GITHUB_ENV
           
       - name: Build compiled wheels
         if: ${{ !inputs.pure-python }}
@@ -118,8 +122,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set environment variables for sdist
+        if: ${{ inputs.env != '' }}
+        run: |
+          echo "${{ inputs.env }}" >> $GITHUB_ENV
+          
       - name: Build sdist
-        env: ${{ fromJSON(inputs.env) }}
         run: pipx run build --sdist
       - uses: actions/upload-artifact@v4
         with:
