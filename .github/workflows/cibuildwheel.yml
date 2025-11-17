@@ -110,7 +110,7 @@ jobs:
       matrix:
         # For pure Python, only build once on ubuntu-latest
         # For compiled packages, build on multiple platforms
-        os: ${{ inputs.pure-python && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest", "windows-latest", "macos-13", "macos-14", "ubuntu-24.04-arm"]') }}
+        os: ${{ inputs.pure-python && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest", "windows-latest", "macos-13", "macos-14", "ubuntu-24.04-arm", "windows-11-arm"]') }}
 
     steps:
       - uses: actions/checkout@v4
