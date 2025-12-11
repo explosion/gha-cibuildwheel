@@ -97,7 +97,7 @@ Handles wheel building and GitHub release creation.
 
 **Default OS Matrix:**
 ```json
-["ubuntu-latest", "windows-latest", "macos-13", "macos-14"]
+["ubuntu-latest", "ubuntu-24.04-arm", "windows-latest", "windows-11-arm", "macos-15-intel", "macos-latest"]
 ```
 
 ### Secrets
@@ -114,7 +114,7 @@ jobs:
   build:
     uses: explosion/gha-cibuildwheel/cibuildwheel.yml@main
     with:
-      os-matrix: '["ubuntu-latest", "windows-latest", "macos-13", "macos-14", "ubuntu-24.04-arm"]'
+      os-matrix: '["ubuntu-latest", "ubuntu-24.04-arm", "windows-latest", "windows-11-arm", "macos-15-intel", "macos-latest"]'
     secrets:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
