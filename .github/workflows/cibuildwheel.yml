@@ -52,6 +52,11 @@ on:
         type: string
         default: ''
         required: false
+      submodules:
+        description: 'Whether to check out submodules: "true", "false", or "recursive"'
+        type: string
+        default: 'false'
+        required: false
     secrets:
       gh-token:
         description: 'GitHub token for creating releases'
@@ -115,7 +120,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-      
+        with:
+          submodules: ${{ inputs.submodules }}
+
       # Pure Python build path
       - name: Configure Python version
         if: ${{ inputs.pure-python }}
@@ -232,6 +239,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          submodules: ${{ inputs.submodules }}
 
       - name: Set environment variables for sdist
         if: ${{ inputs.env != '' }}
