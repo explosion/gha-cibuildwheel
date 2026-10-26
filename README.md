@@ -1,59 +1,25 @@
 # explosion/gha-cibuildwheel
 
-Reusable GitHub Actions workflows for building and publishing Python wheels across Explosion AI projects.
+A reusable GitHub Actions workflow that builds wheels and a source
+distribution for Explosion's Python packages and attaches them to a draft
+GitHub release.
 
-## Overview
+It supports:
 
-This repository provides two reusable workflows:
-- **`cibuildwheel.yml`**: Builds Python wheels and source distributions, creates GitHub releases
-- **`publish_pypi.yml`**: Publishes releases to PyPI
+- **Compiled packages** (spaCy, thinc, cymem, preshed, ...): wheels are built
+  with [cibuildwheel](https://cibuildwheel.pypa.io/) on Linux (x86_64 and
+  aarch64), Windows (x64 and ARM64) and macOS (Intel and Apple silicon).
+- **Pure Python packages** (confection, weasel, ...): a single universal
+  wheel is built with `uv build`.
 
-The workflows support both:
-- **C-extension packages**: Multi-platform wheel building using cibuildwheel
-- **Pure Python packages**: Universal wheel building without platform-specific compilation
+Publishing to PyPI is not part of this workflow. Releases are published
+from the GitHub release by
+[explosion/wheelmonger](https://github.com/explosion/wheelmonger).
 
 ## Usage
 
-### Basic Setup for C-extension Packages
-
-For packages with C extensions (like spaCy, thinc, cymem, etc.):
-
-#### `.github/workflows/cibuildwheel.yml`
-```yaml
-name: Build
-
-on:
-  push:
-    tags:
-      - 'release-v[0-9]+.[0-9]+.[0-9]+**'
-      - 'prerelease-v[0-9]+.[0-9]+.[0-9]+**'
-
-jobs:
-  build:
-    uses: explosion/gha-cibuildwheel/cibuildwheel.yml@main
-    secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-#### `.github/workflows/publish_pypi.yml`
-```yaml
-name: Publish to PyPI
-
-on:
-  release:
-    types:
-      - published
-
-jobs:
-  publish:
-    uses: explosion/gha-cibuildwheel/publish_pypi.yml@main
-    with:
-      pypi-package-name: 'your-package-name'
-```
-
-### Setup for Pure Python Packages
-
-For pure Python packages (like confection, wasabi, catalogue):
+Add `.github/workflows/cibuildwheel.yml` to the package repository. Pin the
+workflow to a commit SHA:
 
 ```yaml
 name: Build
@@ -61,201 +27,77 @@ name: Build
 on:
   push:
     tags:
+      # ** matches 'zero or more of any character'
       - 'release-v[0-9]+.[0-9]+.[0-9]+**'
       - 'prerelease-v[0-9]+.[0-9]+.[0-9]+**'
 
+permissions: {}
+
 jobs:
-  build:
-    uses: explosion/gha-cibuildwheel/cibuildwheel.yml@main
+  build_wheels:
+    uses: explosion/gha-cibuildwheel/.github/workflows/cibuildwheel.yml@<sha> # main
+    permissions:
+      contents: write
+      actions: read
     with:
-      pure-python: true
+      wheel-name-pattern: "preshed-*.whl"
+      pure-python: false
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      gh-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-## Workflow: cibuildwheel.yml
+For a compiled package, configure cibuildwheel under `[tool.cibuildwheel]`
+in `pyproject.toml` (which Python versions to `skip`, the manylinux images,
+repair commands and so on).
 
-Handles wheel building and GitHub release creation.
+## Inputs
 
-### Inputs
+| Input | Description | Default |
+|-------|-------------|---------|
+| `wheel-name-pattern` | Pattern matching the built wheels, e.g. `"preshed-*.whl"`. **Required.** | |
+| `pure-python` | Build one universal wheel instead of running cibuildwheel | `false` |
+| `package-dir` | Path to the package directory | `.` |
+| `output-dir` | Directory the wheels are written to | `wheelhouse` |
+| `config-file` | cibuildwheel config file | `{package}/pyproject.toml` |
+| `python-version` | Python version for pure Python builds | `3.11` |
+| `tag-pattern-release` | Tag pattern for release builds | `release-v[0-9]+.[0-9]+.[0-9]+**` |
+| `tag-pattern-prerelease` | Tag pattern for prerelease builds | `prerelease-v[0-9]+.[0-9]+.[0-9]+**` |
+| `create-release` | Create a draft GitHub release with the artifacts | `true` |
+| `env` | Extra environment variables for the builds, one `KEY: value` per line | `''` |
+| `submodules` | Check out submodules: `"true"`, `"false"` or `"recursive"` | `'false'` |
+| `os-matrix` | JSON list of runners to build compiled wheels on | see below |
 
-| Input | Description | Default | Required |
-|-------|-------------|---------|----------|
-| `pure-python` | Whether this is a pure Python package | `false` | No |
-| `package-dir` | Directory containing the package to build | `.` | No |
-| `output-dir` | Output directory for built wheels | `wheelhouse` | No |
-| `config-file` | Path to cibuildwheel config file | `{package}/pyproject.toml` | No |
-| `cibw-archs-linux` | Architectures to build on Linux | `auto` | No |
-| `cibw-env-vars` | JSON object of environment variables for cibuildwheel | `{}` | No |
-| `build-sdist` | Whether to build source distribution | `true` | No |
-| `create-release` | Whether to create a GitHub release | `true` | No |
-| `release-name-prefix` | Prefix to remove from tag for release name | `release-` | No |
-| `prerelease-name-prefix` | Prefix for prerelease tags | `prerelease-` | No |
-| `os-matrix` | JSON array of OS runners to build on | See below | No |
-| `python-version` | Python version for sdist build | `3.11` | No |
-| `cibuildwheel-version` | Version of cibuildwheel to use | `v2.21.3` | No |
+The default `os-matrix` is:
 
-**Default OS Matrix:**
 ```json
-["ubuntu-latest", "windows-latest", "macos-13", "macos-14"]
+["ubuntu-latest", "ubuntu-24.04-arm", "windows-latest", "windows-11-arm", "macos-15-intel", "macos-latest"]
 ```
 
-### Secrets
+A macOS-only package can pass:
 
-| Secret | Description | Required |
-|--------|-------------|----------|
-| `GITHUB_TOKEN` | GitHub token for creating releases | No (uses default if not provided) |
-
-### Advanced Examples
-
-#### Custom OS Matrix
 ```yaml
-jobs:
-  build:
-    uses: explosion/gha-cibuildwheel/cibuildwheel.yml@main
     with:
-      os-matrix: '["ubuntu-latest", "windows-latest", "macos-13", "macos-14", "ubuntu-24.04-arm"]'
-    secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      os-matrix: '["macos-15-intel", "macos-latest"]'
 ```
 
-#### Custom Environment Variables
-```yaml
-jobs:
-  build:
-    uses: explosion/gha-cibuildwheel/cibuildwheel.yml@main
-    with:
-      cibw-env-vars: '{"CIBW_SOME_OPTION": "value", "CIBW_BUILD": "cp38-*"}'
-    secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
+## Secrets
 
-#### Skip Release Creation
-```yaml
-jobs:
-  build:
-    uses: explosion/gha-cibuildwheel/cibuildwheel.yml@main
-    with:
-      create-release: false
-    secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
+| Secret | Description |
+|--------|-------------|
+| `gh-token` | Token used to check for existing releases and create the draft release. Defaults to `github.token`. |
 
-## Workflow: publish_pypi.yml
+## How it works
 
-Handles PyPI publishing when a GitHub release is published.
+1. Pushing a tag such as `release-v3.0.15` triggers the workflow.
+2. `check_release` fails if a non-draft release already exists for that
+   version.
+3. `build_wheels` builds the wheels, and `build_sdist` builds the source
+   distribution with `uv build --sdist`.
+4. `create_release` creates a draft GitHub release named after the version
+   (`v3.0.15`) with all the artifacts. Tags starting with `prerelease-` are
+   marked as prereleases.
+5. Publish the release, then run wheelmonger to upload the artifacts to PyPI.
 
-### Inputs
-
-| Input | Description | Default | Required |
-|-------|-------------|---------|----------|
-| `pypi-package-name` | PyPI project name (for environment URL) | - | **Yes** |
-
-### Example
-
-```yaml
-name: Publish to PyPI
-
-on:
-  release:
-    types:
-      - published
-
-jobs:
-  publish:
-    uses: explosion/gha-cibuildwheel/publish_pypi.yml@main
-    with:
-      pypi-package-name: 'spacy'
-```
-
-## How It Works
-
-### C-extension Packages
-1. **Push tag** matching pattern (e.g., `release-v3.7.0`)
-2. **cibuildwheel.yml** triggers:
-   - Builds wheels for all platforms using `cibuildwheel`
-   - Builds source distribution
-   - Creates draft GitHub release with artifacts
-3. **Review and publish** the GitHub release
-4. **publish_pypi.yml** triggers:
-   - Downloads artifacts from release
-   - Publishes to PyPI using trusted publishing (OIDC)
-
-### Pure Python Packages
-1. **Push tag** matching pattern
-2. **cibuildwheel.yml** triggers:
-   - Builds single universal wheel on Ubuntu
-   - Builds source distribution
-   - Creates draft GitHub release with artifacts
-3. **Review and publish** the GitHub release
-4. **publish_pypi.yml** triggers (same as above)
-
-## Requirements
-
-### Repository Setup
-- **pyproject.toml** with build configuration
-- **Trusted publishing** configured on PyPI (recommended)
-- **GitHub environment** named "pypi" with deployment protection rules (optional)
-
-### For C-extension Packages
-- **cibuildwheel configuration** in pyproject.toml:
-  ```toml
-  [tool.cibuildwheel]
-  build = "cp38-* cp39-* cp310-* cp311-* cp312-*"
-  skip = "*-musllinux_*"
-  ```
-
-## Migration Guide
-
-### From Individual Workflows
-
-1. Replace your `.github/workflows/cibuildwheel.yml` with the minimal version above
-2. Replace your `.github/workflows/publish_pypi.yml` with the minimal version above
-3. Add `pypi-package-name` parameter with your actual PyPI package name
-4. For pure Python packages, add `pure-python: true`
-
-### Version Pinning
-
-For production use, pin to a specific version instead of using `@main`:
-
-```yaml
-uses: explosion/gha-cibuildwheel/cibuildwheel.yml@v1.0.0
-```
-
-## Supported Projects
-
-Currently used by:
-- **spaCy** - Industrial-strength NLP (C-extension)
-- **thinc** - Functional deep learning (C-extension)
-- **cymem** - Memory management helpers (C-extension)
-- **murmurhash** - Cython bindings for MurmurHash (C-extension)
-- **preshed** - Cython hash tables (C-extension)
-- **srsly** - Serialization utilities (C-extension)
-- **confection** - Configuration system (Pure Python)
-
-## Troubleshooting
-
-### Wheels not building for certain platforms
-Check your `os-matrix` input includes all required platforms.
-
-### Environment variables not being set
-Ensure `cibw-env-vars` is valid JSON. Test with:
-```bash
-echo '{"CIBW_SOME_OPTION": "value"}' | jq .
-```
-
-### Release not being created
-Verify:
-- Tag matches the pattern (e.g., `release-v1.0.0`)
-- `GITHUB_TOKEN` has appropriate permissions
-- `create-release` is not set to `false`
-
-### PyPI upload fails
-Check:
-- Trusted publishing is configured correctly
-- `pypi-package-name` matches your actual PyPI project
-- GitHub environment "pypi" exists (if using environment protection)
-
-## License
-
-MIT
+Compiled wheels use cibuildwheel's `build[uv]` frontend. The build
+environment created by uv doesn't include pip, so `before-build` commands
+must not call `pip`.

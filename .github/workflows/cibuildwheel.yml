@@ -57,6 +57,11 @@ on:
         type: string
         default: 'false'
         required: false
+      os-matrix:
+        description: 'JSON list of runners to build compiled wheels on, e.g. ["macos-15-intel", "macos-latest"] for a macOS-only package'
+        type: string
+        default: '["ubuntu-latest", "ubuntu-24.04-arm", "windows-latest", "windows-11-arm", "macos-15-intel", "macos-latest"]'
+        required: false
     secrets:
       gh-token:
         description: 'GitHub token for creating releases'
@@ -116,7 +121,7 @@ jobs:
       matrix:
         # For pure Python, only build once on ubuntu-latest
         # For compiled packages, build on multiple platforms
-        os: ${{ inputs.pure-python && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest", "ubuntu-24.04-arm", "windows-latest", "windows-11-arm", "macos-15-intel", "macos-latest"]') }}
+        os: ${{ inputs.pure-python && fromJSON('["ubuntu-latest"]') || fromJSON(inputs.os-matrix) }}
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
